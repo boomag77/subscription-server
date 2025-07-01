@@ -1,0 +1,13 @@
+[Unit]
+Description=Subscription Server
+After=network.target
+
+[Service]
+ExecStart=/opt/subscription-server/server
+WorkingDirectory=/opt/subscription-server
+Restart=always
+User=ubuntu
+Environment=GODEBUG=tls13=1
+
+[Install]
+WantedBy=multi-user.target
