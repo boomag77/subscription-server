@@ -21,4 +21,4 @@ go build -o $BIN_NAME ./cmd/server
 echo "Restarting service..."
 sudo systemctl restart subscription-server.service
 
-echo "Deploy completed successfully!"
+echo "Deploy completed successfully"
