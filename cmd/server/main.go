@@ -13,7 +13,9 @@ func main() {
 	port := ":443"
 
 	// Загружаем TLS-сертификаты
-	cert, err := tls.LoadX509KeyPair("config/cert.pem", "config/key.pem")
+	cert, err := tls.LoadX509KeyPair(
+		"/etc/letsencrypt/live/subscrsrv.boomag.org/fullchain.pem",
+		"/etc/letsencrypt/live/subscrsrv.boomag.org/privkey.pem")
 	if err != nil {
 		log.Fatalf("failed to load TLS certs: %v", err)
 	}
