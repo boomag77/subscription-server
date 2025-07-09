@@ -13,7 +13,7 @@ func NewRouter() http.Handler {
 			http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		fmt.Fprintln(w, "pong")
+		fmt.Fprintln(w, "pong!!!")
 	})
 
 	return mux
