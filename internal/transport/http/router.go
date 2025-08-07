@@ -3,9 +3,10 @@ package http
 import (
 	"fmt"
 	"net/http"
+	"subscription-server/internal/storage"
 )
 
-func NewRouter() http.Handler {
+func NewRouter(storage storage.Storage) http.Handler {
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("/ping", func(w http.ResponseWriter, r *http.Request) {

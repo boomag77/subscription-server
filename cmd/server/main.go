@@ -5,13 +5,17 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"subscription-server/internal/storage"
 	httpTransport "subscription-server/internal/transport/http"
 )
 
 func main() {
 
+	localStorage := storage.NewMemoryStorage()
+	
+
 	port := ":443"
-	// 14.
+	
 	// Загружаем TLS-сертификаты
 	cert, err := tls.LoadX509KeyPair(
 		"/etc/letsencrypt/live/subscrsrv.boomag.org/fullchain.pem",
@@ -29,7 +33,7 @@ func main() {
 	// HTTP сервер
 	server := &http.Server{
 		Addr:      port,
-		Handler:   httpTransport.NewRouter(),
+		Handler:   httpTransport.NewRouter(localStorage),
 		TLSConfig: tlsConfig,
 	}
 
