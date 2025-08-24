@@ -1,0 +1,22 @@
+name: Test new SSH key
+on: workflow_dispatch
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Add NEW SSH key
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.EC2_SSH_KEY_NEW }}
+
+      - name: Configure known_hosts (pin)
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.EC2_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Smoke SSH
+        run: |
+          ssh -o UserKnownHostsFile=~/.ssh/known_hosts ubuntu@ec2-13-222-72-204.compute-1.amazonaws.com \
+            'echo OK && id && date'

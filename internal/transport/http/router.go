@@ -14,7 +14,7 @@ func NewRouter(storage storage.Storage) http.Handler {
 			http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		fmt.Fprintln(w, "pong!!!")
+		fmt.Fprintln(w, "pong!!! new SSH_KEY")
 	})
 
 	return mux
