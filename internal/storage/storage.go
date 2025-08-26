@@ -3,10 +3,10 @@ package storage
 import "time"
 
 type SubscriptionStatus struct {
+	ExpiresAt             time.Time
 	UserToken             string
 	ProductID             string
 	OriginalTransactionID string
-	ExpiresAt             time.Time
 	IsActive              bool
 }
 

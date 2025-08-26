@@ -18,7 +18,7 @@ func NewRouter(storage storage.Storage) http.Handler {
 		fmt.Fprintln(w, "pong!!! new SSH_KEY")
 	})
 
-	mux.HandleFunc("/appstoreconnectnotification/v2", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/api/v1/notifications/apple/v2", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
 			return
