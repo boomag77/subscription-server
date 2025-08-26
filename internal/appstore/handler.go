@@ -5,10 +5,42 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/http"
 	"strings"
+	"subscription-server/internal/storage"
 )
 
-func DecodeRawNotification(r io.Reader) (string, error) {
+func HandleAppStoreNotification(w http.ResponseWriter, r *http.Request, storage storage.Storage) {
+	// Decode the raw notification
+	signedPayload, err := decodeRawNotification(r.Body)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("failed to decode notification: %v", err), http.StatusBadRequest)
+
+		return
+	}
+
+	// Parse the signed payload
+	parsed, err := parseSignedPayload(signedPayload)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("failed to parse signed payload: %v", err), http.StatusBadRequest)
+		return
+	}
+
+	// Process the notification
+	if err := processNotification(parsed, storage); err != nil {
+		http.Error(w, fmt.Sprintf("failed to process notification: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func processNotification(parsed *ParsedJWS, storage storage.Storage) error {
+	// Implement your notification processing logic here
+	return nil
+}
+
+func decodeRawNotification(r io.Reader) (string, error) {
 	var rawBody struct {
 		SignedPayload string `json:"signedPayload"`
 	}
@@ -51,7 +83,7 @@ type ParsedJWS struct {
 	Signature []byte
 }
 
-func ParseSignedPayload(signed string) (*ParsedJWS, error) {
+func parseSignedPayload(signed string) (*ParsedJWS, error) {
 	if signed == "" {
 		return nil, fmt.Errorf("signed payload is empty")
 	}

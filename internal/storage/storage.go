@@ -3,11 +3,11 @@ package storage
 import "time"
 
 type SubscriptionStatus struct {
-	UserToken string
-	AppAccountToken string
-	ProductID string
-	ExpiresAt time.Time
-	IsActive bool
+	UserToken             string
+	ProductID             string
+	OriginalTransactionID string
+	ExpiresAt             time.Time
+	IsActive              bool
 }
 
 type Storage interface {
