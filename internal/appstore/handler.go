@@ -1,21 +1,24 @@
 package appstore
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
 	"subscription-server/internal/storage"
+	"time"
 )
 
-func HandleAppStoreNotification(w http.ResponseWriter, r *http.Request, storage storage.Storage) {
+func HandleAppStoreNotification(w http.ResponseWriter, r *http.Request, store storage.Storage) {
 
 	notification, err := parseNotification(r)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("failed to parse notification: %v", err), http.StatusBadRequest)
 		return
 	}
-	if err := processNotification(notification, storage); err != nil {
+	if err := processNotification(notification, store); err != nil {
 		http.Error(w, fmt.Sprintf("failed to process notification: %v", err), http.StatusInternalServerError)
 		return
 	}
@@ -23,11 +26,23 @@ func HandleAppStoreNotification(w http.ResponseWriter, r *http.Request, storage 
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func processNotification(notification *Notification, storage storage.Storage) error {
+func msToTime(ms *int64) time.Time {
+	if ms == nil || *ms == 0 {
+		return time.Time{}
+	}
+	return time.Unix(0, *ms*int64(time.Millisecond)).UTC()
+}
+
+func processNotification(notification *Notification, store storage.Storage) error {
 
 	parsedTx, err := parseTransaction(notification.Data.SignedTransactionInfo)
 	if err != nil {
 		return fmt.Errorf("failed to parse transaction: %w", err)
+	}
+
+	parsedRenewalInfo, err := parseRenewalInfo(notification.Data.SignedRenewalInfo)
+	if err != nil {
+		return fmt.Errorf("failed to parse renewal info: %w", err)
 	}
 
 	user := notification.Data.AppAccountToken
@@ -35,12 +50,41 @@ func processNotification(notification *Notification, storage storage.Storage) er
 		user = "tx:" + parsedTx.OriginalTransactionID
 	}
 
-	parsedRenewalInfo, _ := parseRenewalInfo(notification.Data.SignedRenewalInfo)
-	// if err != nil {
-	// 	return fmt.Errorf("failed to parse renewal info: %w", err)
-	// }
+	expiresAt := msToTime(parsedTx.ExpiresDateMS)
 
-	_ = parsedRenewalInfo
+	var grace time.Time
+
+	if parsedRenewalInfo != nil {
+		if t := msToTime(parsedRenewalInfo.GracePeriodExpiresDateMS); !t.IsZero() {
+			grace = t
+		}
+	}
+
+	activeUntil := expiresAt
+	if grace.After(expiresAt) {
+		activeUntil = grace
+	}
+
+	now := time.Now().UTC()
+
+	isActive := !activeUntil.IsZero() && now.Before(activeUntil)
+
+	if parsedTx.RevocationDateMS != nil && *parsedTx.RevocationDateMS > 0 {
+		isActive = false
+	}
+	if notification.NotificationType == "EXPIRED" {
+		isActive = false
+	}
+
+	status := &storage.SubscriptionStatus{
+		ExpiresAt:             activeUntil,
+		UserToken:             user,
+		ProductID:             parsedTx.ProductID,
+		OriginalTransactionID: parsedTx.OriginalTransactionID,
+		IsActive:              isActive,
+	}
+
+	store.SetSubscriptionStatus(status)
 
 	return nil
 }
@@ -71,13 +115,6 @@ type Notification struct {
 		SignedTransactionInfo string `json:"signedTransactionInfo"`
 		SignedRenewalInfo     string `json:"signedRenewalInfo,omitempty"`
 	} `json:"data"`
-}
-
-type NotificationData struct {
-	BundleID        string `json:"bundleId"`
-	BundleVersion   string `json:"bundleVersion"`
-	Environment     string `json:"environment"`
-	AppAccountToken string `json:"appAccountToken,omitempty"`
 }
 
 /*
@@ -202,4 +239,27 @@ func decodeSignedJWS(signed string) (*DecodedJWS, error) {
 		PayloadBytes:   plBytes,
 		SignatureBytes: sigBytes,
 	}, nil
+}
+
+func decodeRawNotification(r io.Reader) (string, error) {
+	var rawBody struct {
+		SignedPayload string `json:"signedPayload"`
+	}
+	dec := json.NewDecoder(io.LimitReader(r, 1<<20)) // Limit to 1MB
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(&rawBody); err != nil {
+		return "", fmt.Errorf("failed to decode notification: %w", err)
+	}
+	if rawBody.SignedPayload == "" {
+		return "", fmt.Errorf("missing signed payload")
+	}
+	return rawBody.SignedPayload, nil
+}
+
+func decodeBase64String(input string) ([]byte, error) {
+	decoded, err := base64.RawURLEncoding.DecodeString(input)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode base64: %w", err)
+	}
+	return decoded, nil
 }
