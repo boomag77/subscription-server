@@ -23,7 +23,7 @@ func HandleAppStoreNotification(w http.ResponseWriter, r *http.Request, store st
 		return
 	}
 
-	w.WriteHeader(http.StatusNoContent)
+	w.WriteHeader(http.StatusOK)
 }
 
 func msToTime(ms *int64) time.Time {
@@ -202,13 +202,19 @@ func parseNotification(r *http.Request) (*Notification, error) {
 	if err := json.Unmarshal(decodedJWS.HeaderBytes, &header); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal JWS header: %w", err)
 	}
+
 	var parsed Notification
 	if err := json.Unmarshal(decodedJWS.PayloadBytes, &parsed); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal JWS payload: %w", err)
 	}
+	var signature string
+	if err := json.Unmarshal(decodedJWS.SignatureBytes, &signature); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal JWS signature: %w", err)
+	}
 
 	return &parsed, nil
 }
+
 
 func decodeSignedJWS(signed string) (*DecodedJWS, error) {
 	if signed == "" {
@@ -218,6 +224,12 @@ func decodeSignedJWS(signed string) (*DecodedJWS, error) {
 	if len(parts) != 3 {
 		return nil, fmt.Errorf("invalid JWS format: want 3 parts")
 	}
+
+	// Validate the signature
+	if err := validateSignedJWS(parts[0], parts[1], parts[2]); err != nil {
+		return nil, fmt.Errorf("failed to validate JWS: %w", err)
+	}
+
 	// header raw bytes
 	hdrBytes, err := decodeBase64String(parts[0])
 	if err != nil {
