@@ -207,14 +207,9 @@ func parseNotification(r *http.Request) (*Notification, error) {
 	if err := json.Unmarshal(decodedJWS.PayloadBytes, &parsed); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal JWS payload: %w", err)
 	}
-	var signature string
-	if err := json.Unmarshal(decodedJWS.SignatureBytes, &signature); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal JWS signature: %w", err)
-	}
 
 	return &parsed, nil
 }
-
 
 func decodeSignedJWS(signed string) (*DecodedJWS, error) {
 	if signed == "" {
