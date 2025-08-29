@@ -11,6 +11,14 @@ import (
 	"time"
 )
 
+func HandleClientNotification(w http.ResponseWriter, r *http.Request, store storage.Storage) {
+	// Handle Client notifications
+}
+
+func HandleClientRequest(w http.ResponseWriter, r *http.Request, store storage.Storage) {
+	// Handle Client requests
+}
+
 func HandleAppStoreNotification(w http.ResponseWriter, r *http.Request, store storage.Storage) {
 
 	notification, err := parseNotification(r)
