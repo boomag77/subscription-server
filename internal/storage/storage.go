@@ -14,3 +14,4 @@ type Storage interface {
 	GetSubscriptionStatus(userToken string) (*SubscriptionStatus, error)
 	SetSubscriptionStatus(status *SubscriptionStatus) error
 }
+
