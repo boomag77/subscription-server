@@ -9,8 +9,12 @@ import (
 )
 
 func HandleClientNotification(w http.ResponseWriter, r *http.Request, s storage.Storage) {
-	// Handle Client notifications
-	
+	if err := processClientNotification(r, s); err != nil {
+		http.Error(w, fmt.Sprintf("failed to process notification: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
 }
 
 func HandleClientRequest(w http.ResponseWriter, r *http.Request, s storage.Storage) {
@@ -27,9 +31,43 @@ func HandleAppStoreNotification(w http.ResponseWriter, r *http.Request, s storag
 	w.WriteHeader(http.StatusOK)
 }
 
+func processClientNotification(r *http.Request, s storage.Storage) error {
+	parsedClientNotification, err := parseClientNotification(r.Body)
+	if err != nil {
+		return fmt.Errorf("failed to parse client notification: %w", err)
+	}
+
+	signedTx := parsedClientNotification.SignedTransactionInfo
+	parsedClientTx, err := parseTransaction(signedTx)
+	if err != nil {
+		return fmt.Errorf("failed to parse client transaction: %w", err)
+	}
+	user := parsedClientNotification.AppAccountToken
+	if user == "" {
+		user = "tx:" + parsedClientTx.OriginalTransactionID
+	}
+	expiresAt := tools.MsToTime(parsedClientTx.ExpiresDateMS)
+	now := time.Now().UTC()
+	isActive := !expiresAt.IsZero() && now.Before(expiresAt)
+	if parsedClientTx.RevocationDateMS != nil && *parsedClientTx.RevocationDateMS > 0 {
+		isActive = false
+	}
+
+	status := &storage.SubscriptionStatus{
+		ExpiresAt:             expiresAt,
+		UserToken:             user,
+		ProductID:             parsedClientTx.ProductID,
+		OriginalTransactionID: parsedClientTx.OriginalTransactionID,
+		IsActive:              isActive,
+	}
+	s.SetSubscriptionStatus(status)
+
+	return nil
+}
+
 func processAppStoreNotification(r *http.Request, s storage.Storage) error {
 
-	parsedNotification, err := parseNotification(r.Body)
+	parsedNotification, err := parseAppStoreNotification(r.Body)
 	if err != nil {
 		return fmt.Errorf("failed to parse notification: %w", err)
 	}

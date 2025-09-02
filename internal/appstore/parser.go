@@ -8,8 +8,6 @@ import (
 	"strings"
 )
 
-
-
 type jwsHeader struct {
 	Alg string   `json:"alg"`
 	Typ string   `json:"typ,omitempty"`
@@ -22,7 +20,7 @@ type DecodedJWS struct {
 	SignatureBytes []byte
 }
 
-type Notification struct {
+type AppStoreNotification struct {
 	NotificationType string `json:"notificationType"`
 	Subtype          string `json:"subtype,omitempty"`
 	NotificationUUID string `json:"notificationUUID"`
@@ -36,6 +34,12 @@ type Notification struct {
 		SignedTransactionInfo string `json:"signedTransactionInfo"`
 		SignedRenewalInfo     string `json:"signedRenewalInfo,omitempty"`
 	} `json:"data"`
+}
+
+type ClientNotification struct {
+	BundleID              string `json:"bundleId"`
+	AppAccountToken       string `json:"appAccountToken,omitempty"`
+	SignedTransactionInfo string `json:"signedTransactionInfo"`
 }
 
 /*
@@ -108,7 +112,7 @@ func parseRenewalInfo(signedRenewalInfo string) (*RenewalInfo, error) {
 	return &renewalInfo, nil
 }
 
-func parseNotification(body io.Reader) (*Notification, error) {
+func parseAppStoreNotification(body io.Reader) (*AppStoreNotification, error) {
 	decodedSignedPayload, err := decodeRawNotification(body)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode notification: %w", err)
@@ -124,12 +128,27 @@ func parseNotification(body io.Reader) (*Notification, error) {
 		return nil, fmt.Errorf("failed to unmarshal JWS header: %w", err)
 	}
 
-	var parsed Notification
+	var parsed AppStoreNotification
 	if err := json.Unmarshal(decodedJWS.PayloadBytes, &parsed); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal JWS payload: %w", err)
 	}
 
 	return &parsed, nil
+}
+
+func parseClientNotification(body io.Reader) (*ClientNotification, error) {
+
+	bodyBytes, err := io.ReadAll(body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read body: %w", err)
+	}
+
+	var clientNotification ClientNotification
+	if err := json.Unmarshal(bodyBytes, &clientNotification); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal client notification: %w", err)
+	}
+
+	return &clientNotification, nil
 }
 
 func decodeSignedJWS(signed string) (*DecodedJWS, error) {
