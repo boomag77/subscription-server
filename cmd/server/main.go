@@ -48,7 +48,7 @@ func main() {
 	// HTTP server
 	server := &http.Server{
 		Addr:      port,
-		Handler:   httpTransport.NewRouter(localStorage),
+		Handler:   httpTransport.NewRouter(deps),
 		TLSConfig: tlsConfig,
 	}
 
