@@ -5,7 +5,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/http"
 	"strings"
+	tools "subscription-server/internal/helpers"
+	"subscription-server/internal/storage"
+	"time"
 )
 
 type jwsHeader struct {
@@ -86,6 +90,40 @@ type RenewalInfo struct {
 	GracePeriodExpiresDateMS *int64 `json:"gracePeriodExpiresDate,omitempty"`
 }
 
+func (s *appleStoreService) processIOSClientNotification(r *http.Request) error {
+	parsedClientNotification, err := parseClientNotification(r.Body)
+	if err != nil {
+		return fmt.Errorf("failed to parse client notification: %w", err)
+	}
+
+	signedTx := parsedClientNotification.SignedTransactionInfo
+	parsedClientTx, err := parseTransaction(signedTx)
+	if err != nil {
+		return fmt.Errorf("failed to parse client transaction: %w", err)
+	}
+	user := parsedClientNotification.AppAccountToken
+	if user == "" {
+		user = "tx:" + parsedClientTx.OriginalTransactionID
+	}
+	expiresAt := tools.MsToTime(parsedClientTx.ExpiresDateMS)
+	now := time.Now().UTC()
+	isActive := !expiresAt.IsZero() && now.Before(expiresAt)
+	if parsedClientTx.RevocationDateMS != nil && *parsedClientTx.RevocationDateMS > 0 {
+		isActive = false
+	}
+
+	status := &storage.SubscriptionStatus{
+		ExpiresAt:             expiresAt,
+		UserToken:             user,
+		ProductID:             parsedClientTx.ProductID,
+		OriginalTransactionID: parsedClientTx.OriginalTransactionID,
+		IsActive:              isActive,
+	}
+	s.storage.SetSubscriptionStatus(status)
+
+	return nil
+}
+
 func parseTransaction(signedTransaction string) (*Transaction, error) {
 
 	decodedTransaction, err := decodeSignedJWS(signedTransaction)
@@ -161,7 +199,8 @@ func decodeSignedJWS(signed string) (*DecodedJWS, error) {
 	}
 
 	// Validate the signature
-	if err := validateSignedJWS(parts[0], parts[1], parts[2]); err != nil {
+	validator := NewAppleJWSValidator()
+	if err := validator.Validate(parts[0], parts[1], parts[2]); err != nil {
 		return nil, fmt.Errorf("failed to validate JWS: %w", err)
 	}
 

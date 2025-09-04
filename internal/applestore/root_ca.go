@@ -1,6 +1,6 @@
 package appstore
 
-const appleRootCA = `
+const appleRootCA string = `
 -----BEGIN CERTIFICATE-----
 MIIEuzCCA6OgAwIBAgIBAjANBgkqhkiG9w0BAQUFADBiMQswCQYDVQQGEwJVUzET
 MBEGA1UEChMKQXBwbGUgSW5jLjEmMCQGA1UECxMdQXBwbGUgQ2VydGlmaWNhdGlv

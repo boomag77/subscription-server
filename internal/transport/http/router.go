@@ -4,8 +4,9 @@ import (
 	"fmt"
 	"net/http"
 	"subscription-server/internal/appstore"
-	"subscription-server/internal/googleplay"
+	"subscription-server/internal/client"
 	"subscription-server/internal/storage"
+	"subscription-server/internal/android"
 )
 
 func NewRouter(storage storage.Storage) http.Handler {
@@ -24,8 +25,17 @@ func NewRouter(storage storage.Storage) http.Handler {
 			http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		// Handle App Store Connect notifications (Server-to-Server)
-		appstore.HandleAppStoreNotification(w, r, storage)
+		// Handle Apple Store Connect notifications (Server-to-Server)
+		appstore.HandleAppleStoreNotification(w, r, storage)
+	})
+
+	mux.HandleFunc("/api/v1/notifications/google", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		// Handle Google Play notifications (Server-to-Server)
+		android.HandleGooglePlayNotification(w, r, storage)
 	})
 
 	mux.HandleFunc("/api/v1/notifications/client/ios", func(w http.ResponseWriter, r *http.Request) {
@@ -33,8 +43,9 @@ func NewRouter(storage storage.Storage) http.Handler {
 			http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		// Handle Client notifications
-		appstore.HandleClientNotification(w, r, storage)
+		// Handle iOS Client notifications
+		clientType := "ios"
+		client.HandleClientNotification(w, r, storage, clientType)
 	})
 
 	mux.HandleFunc("/api/v1/notifications/client/android", func(w http.ResponseWriter, r *http.Request) {
@@ -42,8 +53,9 @@ func NewRouter(storage storage.Storage) http.Handler {
 			http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		// Handle Client notifications
-		googleplay.HandleClientNotification(w, r, storage)
+		// Handle Android Client notifications
+		clientType := "android"
+		client.HandleClientNotification(w, r, storage, clientType)
 	})
 
 	mux.HandleFunc("/api/v1/requests/client/ios/status", func(w http.ResponseWriter, r *http.Request) {
@@ -52,7 +64,7 @@ func NewRouter(storage storage.Storage) http.Handler {
 			return
 		}
 		// Handle Client request
-		appstore.HandleClientRequest(w, r, storage)
+		client.HandleClientRequest(w, r, storage)
 	})
 
 	mux.HandleFunc("/api/v1/requests/client/android/status", func(w http.ResponseWriter, r *http.Request) {
@@ -61,7 +73,7 @@ func NewRouter(storage storage.Storage) http.Handler {
 			return
 		}
 		// Handle Client status
-		googleplay.HandleClientRequest(w, r, storage)
+		client.HandleClientRequest(w, r, storage)
 	})
 
 	return mux

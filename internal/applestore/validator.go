@@ -8,9 +8,20 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
+	"subscription-server/internal/jws"
 )
 
-func validateSignedJWS(header string, payload string, signature string) error {
+type appleJWSValidator struct {
+	rootCA string
+}
+
+func NewAppleJWSValidator() jws.JWSValidator {
+	return &appleJWSValidator{
+		rootCA: appleRootCA,
+	}
+}
+
+func (v *appleJWSValidator) Validate(header string, payload string, signature string) error {
 	if header == "" || payload == "" || signature == "" {
 		return fmt.Errorf("header, payload, and signature must all be non-empty")
 	}
@@ -55,14 +66,14 @@ func validateSignedJWS(header string, payload string, signature string) error {
 	if !ecdsa.VerifyASN1(pubKey, digest[:], sigBytes) {
 		return fmt.Errorf("invalid JWS signature")
 	}
-	if err := validateAppleChain(leafCert, hdr.X5c[1:]); err != nil {
+	if err := v.validateAppleChain(leafCert, hdr.X5c[1:]); err != nil {
 		return fmt.Errorf("validate Apple chain: %w", err)
 	}
 
 	return nil
 }
 
-func validateAppleChain(leafCert *x509.Certificate, intermCerts []string) error {
+func (v *appleJWSValidator) validateAppleChain(leafCert *x509.Certificate, intermCerts []string) error {
 
 	intermediates := x509.NewCertPool()
 	roots := x509.NewCertPool()
@@ -78,7 +89,7 @@ func validateAppleChain(leafCert *x509.Certificate, intermCerts []string) error 
 		intermediates.AddCert(cert)
 	}
 
-	block, _ := pem.Decode([]byte(appleRootCA))
+	block, _ := pem.Decode([]byte(v.rootCA))
 	if block == nil {
 		return fmt.Errorf("failed to parse root CA PEM")
 	}
