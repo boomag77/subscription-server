@@ -3,9 +3,9 @@ package applestore
 import (
 	"fmt"
 	"net/http"
+	"subscription-server/internal/contracts"
 	tools "subscription-server/internal/helpers"
 	"subscription-server/internal/logger"
-	"subscription-server/internal/service"
 	"subscription-server/internal/storage"
 	"time"
 )
@@ -16,7 +16,7 @@ type appleStoreService struct {
 	logger  logger.Logger
 }
 
-func NewAppleStoreService(st storage.Storage, l logger.Logger, p *appleParser) service.Service {
+func NewAppleStoreService(st storage.Storage, l logger.Logger, p *appleParser) contracts.Service {
 	return &appleStoreService{
 		storage: st,
 		parser:  p,
