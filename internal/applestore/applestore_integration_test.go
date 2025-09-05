@@ -1,11 +1,9 @@
-package test
+package applestore
 
 import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
-
-	"subscription-server/internal/applestore"
 )
 
 // TestAppleStoreService_Integration проверяет интеграцию компонентов applestore
@@ -16,9 +14,9 @@ func TestAppleStoreService_Integration(t *testing.T) {
 	mockValidator := NewMockJWSValidator()
 
 	// Создаем компоненты
-	decoder := applestore.NewAppleDecoder(mockValidator)
-	parser := applestore.NewAppleParser(decoder)
-	service := applestore.NewAppleStoreService(mockStorage, mockLogger, parser)
+	decoder := NewAppleDecoder(mockValidator)
+	parser := NewAppleParser(decoder)
+	service := NewAppleStoreService(mockStorage, mockLogger, parser)
 
 	// Тест обработки запросов от клиентов
 	t.Run("HandleClientRequest", func(t *testing.T) {
@@ -52,9 +50,9 @@ func TestHandleClientRequest_Headers(t *testing.T) {
 	mockValidator := NewMockJWSValidator()
 
 	// Создаем компоненты
-	decoder := applestore.NewAppleDecoder(mockValidator)
-	parser := applestore.NewAppleParser(decoder)
-	service := applestore.NewAppleStoreService(mockStorage, mockLogger, parser)
+	decoder := NewAppleDecoder(mockValidator)
+	parser := NewAppleParser(decoder)
+	service := NewAppleStoreService(mockStorage, mockLogger, parser)
 
 	// Тестирование с разными заголовками - адаптируем тесты под реальное поведение сервиса
 	testCases := []struct {

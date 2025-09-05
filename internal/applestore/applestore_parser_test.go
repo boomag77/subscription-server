@@ -1,12 +1,10 @@
-package test
+package applestore
 
 import (
 	"bytes"
 	"encoding/json"
 	"errors"
 	"testing"
-
-	"subscription-server/internal/applestore"
 )
 
 // TestAppleParser проверяет работу парсера для разбора уведомлений Apple
@@ -15,8 +13,8 @@ func TestAppleParser(t *testing.T) {
 	mockValidator := NewMockJWSValidator()
 
 	// Создаем декодер и парсер
-	decoder := applestore.NewAppleDecoder(mockValidator)
-	parser := applestore.NewAppleParser(decoder)
+	decoder := NewAppleDecoder(mockValidator)
+	parser := NewAppleParser(decoder)
 
 	// Тест для ParseClientNotification
 	t.Run("ParseClientNotification", func(t *testing.T) {
@@ -107,7 +105,7 @@ func TestAppleDecoder(t *testing.T) {
 	mockValidator := NewMockJWSValidator()
 
 	// Создаем декодер
-	decoder := applestore.NewAppleDecoder(mockValidator)
+	decoder := NewAppleDecoder(mockValidator)
 
 	// Тест успешного декодирования JWS
 	t.Run("DecodeSignedJWS_Success", func(t *testing.T) {

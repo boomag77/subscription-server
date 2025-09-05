@@ -1,10 +1,9 @@
-package test
+package applestore
 
 import (
 	"errors"
 	"testing"
 
-	"subscription-server/internal/applestore"
 	"subscription-server/internal/contracts"
 	"subscription-server/internal/logger"
 	"subscription-server/internal/storage"
@@ -107,7 +106,7 @@ func TestFactory(t *testing.T) {
 	// Тест создания декодера
 	t.Run("NewAppleDecoder", func(t *testing.T) {
 		validator := NewMockJWSValidator()
-		decoder := applestore.NewAppleDecoder(validator)
+		decoder := NewAppleDecoder(validator)
 
 		if decoder == nil {
 			t.Fatal("Декодер не был создан")
@@ -117,8 +116,8 @@ func TestFactory(t *testing.T) {
 	// Тест создания парсера
 	t.Run("NewAppleParser", func(t *testing.T) {
 		validator := NewMockJWSValidator()
-		decoder := applestore.NewAppleDecoder(validator)
-		parser := applestore.NewAppleParser(decoder)
+		decoder := NewAppleDecoder(validator)
+		parser := NewAppleParser(decoder)
 
 		if parser == nil {
 			t.Fatal("Парсер не был создан")
@@ -130,10 +129,10 @@ func TestFactory(t *testing.T) {
 		storage := NewMockStorage()
 		logger := NewMockLogger()
 		validator := NewMockJWSValidator()
-		decoder := applestore.NewAppleDecoder(validator)
-		parser := applestore.NewAppleParser(decoder)
+		decoder := NewAppleDecoder(validator)
+		parser := NewAppleParser(decoder)
 
-		service := applestore.NewAppleStoreService(storage, logger, parser)
+		service := NewAppleStoreService(storage, logger, parser)
 
 		// Проверяем, что сервис создан и реализует интерфейс contracts.Service
 		var _ contracts.Service = service
