@@ -1,27 +1,26 @@
-package appstore
+package applestore
 
 import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
-	"net/http"
-	"strings"
-	tools "subscription-server/internal/helpers"
-	"subscription-server/internal/storage"
-	"time"
 )
+
+type appleParser struct {
+	decoder *appleDecoder
+}
+
+func NewAppleParser(d *appleDecoder) *appleParser {
+	return &appleParser{
+		decoder: d,
+	}
+}
 
 type jwsHeader struct {
 	Alg string   `json:"alg"`
 	Typ string   `json:"typ,omitempty"`
 	X5c []string `json:"x5c,omitempty"`
-}
-
-type DecodedJWS struct {
-	HeaderBytes    []byte
-	PayloadBytes   []byte
-	SignatureBytes []byte
 }
 
 type AppStoreNotification struct {
@@ -90,91 +89,52 @@ type RenewalInfo struct {
 	GracePeriodExpiresDateMS *int64 `json:"gracePeriodExpiresDate,omitempty"`
 }
 
-func (s *appleStoreService) processIOSClientNotification(r *http.Request) error {
-	parsedClientNotification, err := parseClientNotification(r.Body)
-	if err != nil {
-		return fmt.Errorf("failed to parse client notification: %w", err)
-	}
+func (p *appleParser) ParseTransaction(signedTransaction string) (*Transaction, error) {
 
-	signedTx := parsedClientNotification.SignedTransactionInfo
-	parsedClientTx, err := parseTransaction(signedTx)
-	if err != nil {
-		return fmt.Errorf("failed to parse client transaction: %w", err)
-	}
-	user := parsedClientNotification.AppAccountToken
-	if user == "" {
-		user = "tx:" + parsedClientTx.OriginalTransactionID
-	}
-	expiresAt := tools.MsToTime(parsedClientTx.ExpiresDateMS)
-	now := time.Now().UTC()
-	isActive := !expiresAt.IsZero() && now.Before(expiresAt)
-	if parsedClientTx.RevocationDateMS != nil && *parsedClientTx.RevocationDateMS > 0 {
-		isActive = false
-	}
-
-	status := &storage.SubscriptionStatus{
-		ExpiresAt:             expiresAt,
-		UserToken:             user,
-		ProductID:             parsedClientTx.ProductID,
-		OriginalTransactionID: parsedClientTx.OriginalTransactionID,
-		IsActive:              isActive,
-	}
-	s.storage.SetSubscriptionStatus(status)
-
-	return nil
-}
-
-func parseTransaction(signedTransaction string) (*Transaction, error) {
-
-	decodedTransaction, err := decodeSignedJWS(signedTransaction)
+	txPayloadBytes, err := p.decoder.DecodeSignedJWS(signedTransaction)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode transaction: %w", err)
 	}
 	var transaction Transaction
-	if err := json.Unmarshal(decodedTransaction.PayloadBytes, &transaction); err != nil {
+	if err := json.Unmarshal(txPayloadBytes, &transaction); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal transaction: %w", err)
 	}
 	return &transaction, nil
 }
 
-func parseRenewalInfo(signedRenewalInfo string) (*RenewalInfo, error) {
+func (p *appleParser) ParseRenewalInfo(signedRenewalInfo string) (*RenewalInfo, error) {
 
-	decodedRenewalInfo, err := decodeSignedJWS(signedRenewalInfo)
+	riPayloadBytes, err := p.decoder.DecodeSignedJWS(signedRenewalInfo)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode renewal info: %w", err)
 	}
 	var renewalInfo RenewalInfo
-	if err := json.Unmarshal(decodedRenewalInfo.PayloadBytes, &renewalInfo); err != nil {
+	if err := json.Unmarshal(riPayloadBytes, &renewalInfo); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal renewal info: %w", err)
 	}
 	return &renewalInfo, nil
 }
 
-func parseAppStoreNotification(body io.Reader) (*AppStoreNotification, error) {
-	decodedSignedPayload, err := decodeRawNotification(body)
+func (p *appleParser) ParseAppStoreNotification(body io.Reader) (*AppStoreNotification, error) {
+	decodedSignedPayload, err := p.decoder.DecodeRawNotification(body)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode notification: %w", err)
 	}
 
-	decodedJWS, err := decodeSignedJWS(decodedSignedPayload)
+	payloadBytes, err := base64.StdEncoding.DecodeString(decodedSignedPayload)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode signed JWS: %w", err)
 	}
 
-	var header jwsHeader
-	if err := json.Unmarshal(decodedJWS.HeaderBytes, &header); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal JWS header: %w", err)
-	}
-
 	var parsed AppStoreNotification
-	if err := json.Unmarshal(decodedJWS.PayloadBytes, &parsed); err != nil {
+	if err := json.Unmarshal(payloadBytes, &parsed); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal JWS payload: %w", err)
 	}
 
 	return &parsed, nil
 }
 
-func parseClientNotification(body io.Reader) (*ClientNotification, error) {
+func (p *appleParser) ParseClientNotification(body io.Reader) (*ClientNotification, error) {
 
 	bodyBytes, err := io.ReadAll(body)
 	if err != nil {
@@ -187,65 +147,4 @@ func parseClientNotification(body io.Reader) (*ClientNotification, error) {
 	}
 
 	return &clientNotification, nil
-}
-
-func decodeSignedJWS(signed string) (*DecodedJWS, error) {
-	if signed == "" {
-		return nil, fmt.Errorf("signed payload is empty")
-	}
-	parts := strings.Split(signed, ".")
-	if len(parts) != 3 {
-		return nil, fmt.Errorf("invalid JWS format: want 3 parts")
-	}
-
-	// Validate the signature
-	validator := NewAppleJWSValidator()
-	if err := validator.Validate(parts[0], parts[1], parts[2]); err != nil {
-		return nil, fmt.Errorf("failed to validate JWS: %w", err)
-	}
-
-	// header raw bytes
-	hdrBytes, err := decodeBase64String(parts[0])
-	if err != nil {
-		return nil, fmt.Errorf("decode header: %w", err)
-	}
-	// payload raw bytes
-	plBytes, err := decodeBase64String(parts[1])
-	if err != nil {
-		return nil, fmt.Errorf("decode payload: %w", err)
-	}
-	// signature (raw bytes)
-	sigBytes, err := decodeBase64String(parts[2])
-	if err != nil {
-		return nil, fmt.Errorf("decode signature: %w", err)
-	}
-
-	return &DecodedJWS{
-		HeaderBytes:    hdrBytes,
-		PayloadBytes:   plBytes,
-		SignatureBytes: sigBytes,
-	}, nil
-}
-
-func decodeRawNotification(r io.Reader) (string, error) {
-	var rawBody struct {
-		SignedPayload string `json:"signedPayload"`
-	}
-	dec := json.NewDecoder(io.LimitReader(r, 1<<20)) // Limit to 1MB
-	dec.DisallowUnknownFields()
-	if err := dec.Decode(&rawBody); err != nil {
-		return "", fmt.Errorf("failed to decode notification: %w", err)
-	}
-	if rawBody.SignedPayload == "" {
-		return "", fmt.Errorf("missing signed payload")
-	}
-	return rawBody.SignedPayload, nil
-}
-
-func decodeBase64String(input string) ([]byte, error) {
-	decoded, err := base64.RawURLEncoding.DecodeString(input)
-	if err != nil {
-		return nil, fmt.Errorf("failed to decode base64: %w", err)
-	}
-	return decoded, nil
 }

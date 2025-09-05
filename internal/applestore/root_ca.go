@@ -1,4 +1,4 @@
-package appstore
+package applestore
 
 const appleRootCA string = `
 -----BEGIN CERTIFICATE-----

@@ -1,10 +1,9 @@
-package appstore
+package applestore
 
 import (
 	"fmt"
 	"net/http"
 	tools "subscription-server/internal/helpers"
-	"subscription-server/internal/jws"
 	"subscription-server/internal/logger"
 	"subscription-server/internal/service"
 	"subscription-server/internal/storage"
@@ -12,17 +11,16 @@ import (
 )
 
 type appleStoreService struct {
-	storage   storage.Storage
-	validator jws.JWSValidator
-	logger    logger.Logger
+	storage storage.Storage
+	parser  *appleParser
+	logger  logger.Logger
 }
 
-func NewAppleStoreService(st storage.Storage, l logger.Logger) service.Service {
-	v := NewAppleJWSValidator()
+func NewAppleStoreService(st storage.Storage, l logger.Logger, p *appleParser) service.Service {
 	return &appleStoreService{
-		storage:   st,
-		validator: v,
-		logger:    l,
+		storage: st,
+		parser:  p,
+		logger:  l,
 	}
 }
 
@@ -34,6 +32,40 @@ func (s *appleStoreService) HandleProviderNotification(w http.ResponseWriter, r 
 	}
 
 	w.WriteHeader(http.StatusOK)
+}
+
+func (s *appleStoreService) processIOSClientNotification(r *http.Request) error {
+	parsedClientNotification, err := s.parser.ParseClientNotification(r.Body)
+	if err != nil {
+		return fmt.Errorf("failed to parse client notification: %w", err)
+	}
+
+	signedTx := parsedClientNotification.SignedTransactionInfo
+	parsedClientTx, err := s.parser.ParseTransaction(signedTx)
+	if err != nil {
+		return fmt.Errorf("failed to parse client transaction: %w", err)
+	}
+	user := parsedClientNotification.AppAccountToken
+	if user == "" {
+		user = "tx:" + parsedClientTx.OriginalTransactionID
+	}
+	expiresAt := tools.MsToTime(parsedClientTx.ExpiresDateMS)
+	now := time.Now().UTC()
+	isActive := !expiresAt.IsZero() && now.Before(expiresAt)
+	if parsedClientTx.RevocationDateMS != nil && *parsedClientTx.RevocationDateMS > 0 {
+		isActive = false
+	}
+
+	status := &storage.SubscriptionStatus{
+		ExpiresAt:             expiresAt,
+		UserToken:             user,
+		ProductID:             parsedClientTx.ProductID,
+		OriginalTransactionID: parsedClientTx.OriginalTransactionID,
+		IsActive:              isActive,
+	}
+	s.storage.SetSubscriptionStatus(status)
+
+	return nil
 }
 
 func (s *appleStoreService) HandleClientNotification(w http.ResponseWriter, r *http.Request) {
@@ -52,17 +84,17 @@ func (s *appleStoreService) HandleClientRequest(w http.ResponseWriter, r *http.R
 
 func (s *appleStoreService) processProviderNotification(r *http.Request) error {
 
-	parsedNotification, err := parseAppStoreNotification(r.Body)
+	parsedNotification, err := s.parser.ParseAppStoreNotification(r.Body)
 	if err != nil {
 		return fmt.Errorf("failed to parse notification: %w", err)
 	}
 
-	parsedTx, err := parseTransaction(parsedNotification.Data.SignedTransactionInfo)
+	parsedTx, err := s.parser.ParseTransaction(parsedNotification.Data.SignedTransactionInfo)
 	if err != nil {
 		return fmt.Errorf("failed to parse transaction: %w", err)
 	}
 
-	parsedRenewalInfo, err := parseRenewalInfo(parsedNotification.Data.SignedRenewalInfo)
+	parsedRenewalInfo, err := s.parser.ParseRenewalInfo(parsedNotification.Data.SignedRenewalInfo)
 	if err != nil {
 		return fmt.Errorf("failed to parse renewal info: %w", err)
 	}

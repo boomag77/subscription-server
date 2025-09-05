@@ -4,14 +4,14 @@ import (
 	"os"
 )
 
+type Logger interface {
+	Log(message LogMessage)
+}
+
 type LogMessage struct {
 	Level   string
 	Sender  string
 	Message string
-}
-
-type Logger interface {
-	Log(message LogMessage)
 }
 
 type loggerImpl struct {

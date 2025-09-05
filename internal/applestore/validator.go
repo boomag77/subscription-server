@@ -1,4 +1,4 @@
-package appstore
+package applestore
 
 import (
 	"crypto/ecdsa"
@@ -8,14 +8,14 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
-	"subscription-server/internal/jws"
+	"subscription-server/internal/contracts"
 )
 
 type appleJWSValidator struct {
 	rootCA string
 }
 
-func NewAppleJWSValidator() jws.JWSValidator {
+func NewAppleJWSValidator() contracts.JWSValidator {
 	return &appleJWSValidator{
 		rootCA: appleRootCA,
 	}
@@ -26,7 +26,7 @@ func (v *appleJWSValidator) Validate(header string, payload string, signature st
 		return fmt.Errorf("header, payload, and signature must all be non-empty")
 	}
 
-	hdrBytes, err := decodeBase64String(header)
+	hdrBytes, err := base64.RawURLEncoding.DecodeString(header)
 	if err != nil {
 		return fmt.Errorf("decode header: %w", err)
 	}
@@ -58,7 +58,7 @@ func (v *appleJWSValidator) Validate(header string, payload string, signature st
 	signingInput := fmt.Sprintf("%s.%s", header, payload)
 	digest := sha256.Sum256([]byte(signingInput)) //hash the signing input
 
-	sigBytes, err := decodeBase64String(signature)
+	sigBytes, err := base64.RawURLEncoding.DecodeString(signature)
 	if err != nil {
 		return fmt.Errorf("decode signature: %w", err)
 	}

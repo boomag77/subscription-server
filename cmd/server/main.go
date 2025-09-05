@@ -38,11 +38,15 @@ func main() {
 		log.Panicf("failed to create logger: %v", err)
 	}
 
+	validator := appstore.NewAppleJWSValidator()
+	decoder := appstore.NewAppleDecoder(validator)
+	parser := appstore.NewAppleParser(decoder)
+
 	// Init dependencies
 	deps := &deps.Deps{
 		Storage:      localStorage,
 		Logger:       logger,
-		AppleService: appstore.NewAppleStoreService(localStorage, logger),
+		AppleService: appstore.NewAppleStoreService(localStorage, logger, parser),
 	}
 
 	// HTTP server
