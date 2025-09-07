@@ -2,6 +2,7 @@ package logger
 
 import (
 	"os"
+	"time"
 )
 
 type Logger interface {
@@ -9,6 +10,7 @@ type Logger interface {
 }
 
 type LogMessage struct {
+	Time    time.Time
 	Level   string
 	Sender  string
 	Message string

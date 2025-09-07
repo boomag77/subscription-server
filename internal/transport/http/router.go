@@ -14,7 +14,7 @@ func NewRouter(d *deps.Deps) http.Handler {
 			http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		fmt.Fprintln(w, "pong!!! new SSH_KEY")
+		fmt.Fprintln(w, "pong!!! almast full router")
 	})
 
 	mux.HandleFunc("/api/v1/notifications/apple/v2", func(w http.ResponseWriter, r *http.Request) {

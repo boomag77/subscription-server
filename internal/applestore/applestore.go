@@ -12,8 +12,8 @@ import (
 
 type appleStoreService struct {
 	storage storage.Storage
-	parser  *appleParser
 	logger  logger.Logger
+	parser  *appleParser
 }
 
 func NewAppleStoreService(st storage.Storage, l logger.Logger, p *appleParser) contracts.Service {
@@ -28,6 +28,12 @@ func (s *appleStoreService) HandleProviderNotification(w http.ResponseWriter, r 
 
 	if err := s.processProviderNotification(r); err != nil {
 		http.Error(w, fmt.Sprintf("failed to process notification: %v", err), http.StatusInternalServerError)
+		// s.logger.Log(logger.LogMessage{
+		// 	Level:   "error",
+		// 	Sender:  "appleStoreService",
+		// 	Message: fmt.Sprintf("failed to process notification: %v", err),
+		// 	Time:    time.Now().UTC(),
+		// })
 		return
 	}
 
@@ -38,6 +44,7 @@ func (s *appleStoreService) processIOSClientNotification(r *http.Request) error 
 	parsedClientNotification, err := s.parser.ParseClientNotification(r.Body)
 	if err != nil {
 		return fmt.Errorf("failed to parse client notification: %w", err)
+
 	}
 
 	signedTx := parsedClientNotification.SignedTransactionInfo
