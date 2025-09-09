@@ -65,7 +65,7 @@ func main() {
 
 	fmt.Println("Starting server on https://localhost" + port)
 	go func() {
-		if err := server.ListenAndServeTLS("", ""); err != nil {
+		if err := server.ListenAndServeTLS("", ""); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("server failed: %v", err)
 		}
 	}()
@@ -77,6 +77,5 @@ func main() {
 	}
 	fmt.Println("Server exited properly")
 	logger.Close()
-
 
 }
