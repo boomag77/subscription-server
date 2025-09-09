@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"subscription-server/internal/applestore"
 	"subscription-server/internal/logger"
 	"subscription-server/internal/storage"
 	"testing"
@@ -92,11 +93,11 @@ func TestHandleClientNotification(t *testing.T) {
 	mockValidator := NewMockJWSValidator()
 
 	// Создание декодера и парсера
-	decoder := NewAppleDecoder(mockValidator)
-	parser := NewAppleParser(decoder)
+	decoder := applestore.NewAppleDecoder(mockValidator)
+	parser := applestore.NewAppleParser(decoder)
 
 	// Создание сервиса
-	service := NewAppleStoreService(mockStorage, mockLogger, parser)
+	service := applestore.NewAppleStoreService(mockStorage, mockLogger, parser)
 
 	// Создание запроса с тестовыми данными
 	clientNotification := map[string]interface{}{
@@ -145,11 +146,11 @@ func TestHandleProviderNotification(t *testing.T) {
 	mockValidator := NewMockJWSValidator()
 
 	// Создание декодера и парсера
-	decoder := NewAppleDecoder(mockValidator)
-	parser := NewAppleParser(decoder)
+	decoder := applestore.NewAppleDecoder(mockValidator)
+	parser := applestore.NewAppleParser(decoder)
 
 	// Создание сервиса
-	service := NewAppleStoreService(mockStorage, mockLogger, parser)
+	service := applestore.NewAppleStoreService(mockStorage, mockLogger, parser)
 
 	// Создание запроса с тестовыми данными
 	notificationData := map[string]interface{}{
@@ -180,11 +181,11 @@ func TestHandleProviderNotification_Error(t *testing.T) {
 	mockValidator.SetValidateError(errors.New("validation error"))
 
 	// Создание декодера и парсера
-	decoder := NewAppleDecoder(mockValidator)
-	parser := NewAppleParser(decoder)
+	decoder := applestore.NewAppleDecoder(mockValidator)
+	parser := applestore.NewAppleParser(decoder)
 
 	// Создание сервиса
-	service := NewAppleStoreService(mockStorage, mockLogger, parser)
+	service := applestore.NewAppleStoreService(mockStorage, mockLogger, parser)
 
 	// Создание запроса с некорректными данными
 	notificationData := map[string]interface{}{
@@ -220,11 +221,11 @@ func TestHandleClientNotification_StorageError(t *testing.T) {
 	mockValidator := NewMockJWSValidator()
 
 	// Создание декодера и парсера
-	decoder := NewAppleDecoder(mockValidator)
-	parser := NewAppleParser(decoder)
+	decoder := applestore.NewAppleDecoder(mockValidator)
+	parser := applestore.NewAppleParser(decoder)
 
 	// Создание сервиса
-	service := NewAppleStoreService(mockStorage, mockLogger, parser)
+	service := applestore.NewAppleStoreService(mockStorage, mockLogger, parser)
 
 	// Создание запроса с тестовыми данными
 	clientNotification := map[string]interface{}{

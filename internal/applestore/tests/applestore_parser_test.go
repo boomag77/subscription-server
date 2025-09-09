@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"subscription-server/internal/applestore"
 	"testing"
 )
 
@@ -13,8 +14,8 @@ func TestAppleParser(t *testing.T) {
 	mockValidator := NewMockJWSValidator()
 
 	// Создаем декодер и парсер
-	decoder := NewAppleDecoder(mockValidator)
-	parser := NewAppleParser(decoder)
+	decoder := applestore.NewAppleDecoder(mockValidator)
+	parser := applestore.NewAppleParser(decoder)
 
 	// Тест для ParseClientNotification
 	t.Run("ParseClientNotification", func(t *testing.T) {
@@ -105,7 +106,7 @@ func TestAppleDecoder(t *testing.T) {
 	mockValidator := NewMockJWSValidator()
 
 	// Создаем декодер
-	decoder := NewAppleDecoder(mockValidator)
+	decoder := applestore.NewAppleDecoder(mockValidator)
 
 	// Тест успешного декодирования JWS
 	t.Run("DecodeSignedJWS_Success", func(t *testing.T) {
