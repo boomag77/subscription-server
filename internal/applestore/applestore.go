@@ -26,14 +26,8 @@ func NewAppleStoreService(st storage.Storage, l logger.Logger, p *appleParser) c
 
 func (s *appleStoreService) HandleProviderNotification(w http.ResponseWriter, r *http.Request) {
 
-	if err := s.processProviderNotification(r); err != nil {
+	if err := s.ProcessProviderNotification(r); err != nil {
 		http.Error(w, fmt.Sprintf("failed to process notification: %v", err), http.StatusInternalServerError)
-		// s.logger.Log(logger.LogMessage{
-		// 	Level:   "error",
-		// 	Sender:  "appleStoreService",
-		// 	Message: fmt.Sprintf("failed to process notification: %v", err),
-		// 	Time:    time.Now().UTC(),
-		// })
 		return
 	}
 
@@ -70,7 +64,9 @@ func (s *appleStoreService) processIOSClientNotification(r *http.Request) error 
 		OriginalTransactionID: parsedClientTx.OriginalTransactionID,
 		IsActive:              isActive,
 	}
-	s.storage.SetSubscriptionStatus(status)
+	if err := s.storage.SetSubscriptionStatus(r.Context(), status); err != nil {
+		return fmt.Errorf("failed to set subscription status: %w", err)
+	}
 
 	return nil
 }
@@ -87,9 +83,15 @@ func (s *appleStoreService) HandleClientNotification(w http.ResponseWriter, r *h
 
 func (s *appleStoreService) HandleClientRequest(w http.ResponseWriter, r *http.Request) {
 	// Handle Client requests
+	if err := s.processClientRequest(r); err != nil {
+		http.Error(w, fmt.Sprintf("failed to process client request: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
 }
 
-func (s *appleStoreService) processProviderNotification(r *http.Request) error {
+func (s *appleStoreService) ProcessProviderNotification(r *http.Request) error {
 
 	parsedNotification, err := s.parser.ParseAppStoreNotification(r.Body)
 	if err != nil {
@@ -145,7 +147,23 @@ func (s *appleStoreService) processProviderNotification(r *http.Request) error {
 		IsActive:              isActive,
 	}
 
-	s.storage.SetSubscriptionStatus(status)
+	if err := s.storage.SetSubscriptionStatus(r.Context(), status); err != nil {
+		return fmt.Errorf("failed to set subscription status: %w", err)
+	}
 
 	return nil
+}
+
+func (s *appleStoreService) processClientRequest(r *http.Request) error {
+	// Process Client requests
+	ctx := r.Context()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+		return s.storage.SetSubscriptionStatus(r.Context(), &storage.SubscriptionStatus{
+			UserToken: "client_request",
+			IsActive:  true,
+		})
+	}
 }

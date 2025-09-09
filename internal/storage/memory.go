@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"context"
 	"errors"
 	"sync"
 )
@@ -20,27 +21,35 @@ func NewMemoryStorage() Storage {
 	}
 }
 
-func (m *memoryStorage) GetSubscriptionStatus(userToken string) (*SubscriptionStatus, error) {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
+func (m *memoryStorage) GetSubscriptionStatus(ctx context.Context, userToken string) (*SubscriptionStatus, error) {
 
-	status, exists := m.data[userToken]
-	if !exists {
-		return nil, ErrSubscriptionNotFound
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	default:
+		m.mu.RLock()
+		defer m.mu.RUnlock()
+		status, exists := m.data[userToken]
+		if !exists {
+			return nil, ErrSubscriptionNotFound
+		}
+		copy := *status
+
+		return &copy, nil
 	}
-	copy := *status
 
-	return &copy, nil
 }
 
-func (m *memoryStorage) SetSubscriptionStatus(status *SubscriptionStatus) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
+func (m *memoryStorage) SetSubscriptionStatus(ctx context.Context, status *SubscriptionStatus) error {
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+		m.mu.Lock()
+		defer m.mu.Unlock()
 
-	m.data[status.UserToken] = status
-
-	copy := *status
-	m.data[status.UserToken] = &copy
-
-	return nil
+		copy := *status
+		m.data[status.UserToken] = &copy
+		return nil
+	}
 }

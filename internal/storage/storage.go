@@ -1,6 +1,9 @@
 package storage
 
-import "time"
+import (
+	"context"
+	"time"
+)
 
 type SubscriptionStatus struct {
 	ExpiresAt             time.Time
@@ -11,7 +14,6 @@ type SubscriptionStatus struct {
 }
 
 type Storage interface {
-	GetSubscriptionStatus(userToken string) (*SubscriptionStatus, error)
-	SetSubscriptionStatus(status *SubscriptionStatus) error
+	GetSubscriptionStatus(ctx context.Context, userToken string) (*SubscriptionStatus, error)
+	SetSubscriptionStatus(ctx context.Context, status *SubscriptionStatus) error
 }
-

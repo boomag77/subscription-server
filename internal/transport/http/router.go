@@ -1,7 +1,7 @@
 package http
 
 import (
-	"fmt"
+	"encoding/json"
 	"net/http"
 	"subscription-server/internal/deps"
 )
@@ -9,12 +9,15 @@ import (
 func NewRouter(d *deps.Deps) http.Handler {
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("/ping", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/healthcheck", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		fmt.Fprintln(w, "pong!!! almast full router")
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+		response := map[string]string{"status": "ok"}
+		json.NewEncoder(w).Encode(response)
 	})
 
 	mux.HandleFunc("/api/v1/notifications/apple/v2", func(w http.ResponseWriter, r *http.Request) {

@@ -1,6 +1,7 @@
 package applestore
 
 import (
+	"context"
 	"errors"
 	"testing"
 
@@ -16,7 +17,7 @@ func TestMocks(t *testing.T) {
 		mock := NewMockStorage()
 
 		// Проверяем, что начальное состояние пусто
-		status, err := mock.GetSubscriptionStatus("testUser")
+		status, err := mock.GetSubscriptionStatus(context.Background(), "testUser")
 		if err != nil {
 			t.Errorf("Получена ошибка при первом запросе GetSubscriptionStatus: %v", err)
 		}
@@ -27,7 +28,7 @@ func TestMocks(t *testing.T) {
 		// Проверяем установку ошибки
 		testError := errors.New("test error")
 		mock.SetGetError(testError)
-		_, err = mock.GetSubscriptionStatus("testUser")
+		_, err = mock.GetSubscriptionStatus(context.Background(), "testUser")
 		if err != testError {
 			t.Errorf("Ожидалась ошибка %v, получена %v", testError, err)
 		}
@@ -35,13 +36,13 @@ func TestMocks(t *testing.T) {
 		// Сбрасываем ошибку и проверяем сохранение
 		mock.SetGetError(nil)
 		testStatus := &storage.SubscriptionStatus{UserToken: "testUser", ProductID: "testProduct"}
-		err = mock.SetSubscriptionStatus(testStatus)
+		err = mock.SetSubscriptionStatus(context.Background(), testStatus)
 		if err != nil {
 			t.Errorf("Ошибка при сохранении статуса: %v", err)
 		}
 
 		// Проверяем, что данные сохранились
-		savedStatus, err := mock.GetSubscriptionStatus("testUser")
+		savedStatus, err := mock.GetSubscriptionStatus(context.Background(), "testUser")
 		if err != nil {
 			t.Errorf("Ошибка при получении сохраненного статуса: %v", err)
 		}

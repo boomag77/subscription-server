@@ -2,6 +2,7 @@ package applestore
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"io"
@@ -25,7 +26,7 @@ func NewMockStorage() *MockStorage {
 	}
 }
 
-func (m *MockStorage) GetSubscriptionStatus(userToken string) (*storage.SubscriptionStatus, error) {
+func (m *MockStorage) GetSubscriptionStatus(ctx context.Context, userToken string) (*storage.SubscriptionStatus, error) {
 	if m.getError != nil {
 		return nil, m.getError
 	}
@@ -36,7 +37,7 @@ func (m *MockStorage) GetSubscriptionStatus(userToken string) (*storage.Subscrip
 	return status, nil
 }
 
-func (m *MockStorage) SetSubscriptionStatus(status *storage.SubscriptionStatus) error {
+func (m *MockStorage) SetSubscriptionStatus(ctx context.Context, status *storage.SubscriptionStatus) error {
 	if m.saveError != nil {
 		return m.saveError
 	}
@@ -85,6 +86,7 @@ func (m *MockJWSValidator) SetValidateError(err error) {
 // TestHandleClientNotification тестирует обработку уведомления от клиента
 func TestHandleClientNotification(t *testing.T) {
 	// Подготовка
+
 	mockStorage := NewMockStorage()
 	mockLogger := NewMockLogger()
 	mockValidator := NewMockJWSValidator()
@@ -118,7 +120,7 @@ func TestHandleClientNotification(t *testing.T) {
 	}
 
 	// Проверка сохранения статуса подписки
-	status, err := mockStorage.GetSubscriptionStatus("user123")
+	status, err := mockStorage.GetSubscriptionStatus(req.Context(), "user123")
 	if err != nil {
 		t.Errorf("Ошибка при получении статуса подписки: %v", err)
 	}
@@ -243,7 +245,7 @@ func TestHandleClientNotification_StorageError(t *testing.T) {
 
 	// В зависимости от реализации, ошибка хранилища может вернуть ошибку или 200 OK
 	// Проверяем, что запись в хранилище не произошла
-	status, _ := mockStorage.GetSubscriptionStatus("user123")
+	status, _ := mockStorage.GetSubscriptionStatus(req.Context(), "user123")
 	if status != nil {
 		t.Error("Статус подписки был сохранен несмотря на ошибку")
 	}
