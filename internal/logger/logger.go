@@ -7,6 +7,7 @@ import (
 
 type Logger interface {
 	Log(message LogMessage)
+	Close()
 }
 
 type LogMessage struct {
@@ -39,4 +40,10 @@ func (l *loggerImpl) Log(message LogMessage) {
 	logEntry += message.Message + "\n"
 
 	l.File.WriteString(logEntry)
+}
+
+func (l *loggerImpl) Close() {
+	if l.File != nil {
+		l.File.Close()
+	}
 }

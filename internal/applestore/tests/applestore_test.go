@@ -66,6 +66,9 @@ func NewMockLogger() *MockLogger {
 func (m *MockLogger) Log(message logger.LogMessage) {
 	m.logs = append(m.logs, message)
 }
+func (m *MockLogger) Close() {
+	// No resources to clean up in the mock
+}
 
 // MockJWSValidator реализует интерфейс contracts.JWSValidator для тестирования
 type MockJWSValidator struct {

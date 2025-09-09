@@ -1,15 +1,19 @@
 package main
 
 import (
+	"context"
 	"crypto/tls"
 	"fmt"
 	"log"
 	"net/http"
+	"os/signal"
 	appstore "subscription-server/internal/applestore"
 	"subscription-server/internal/deps"
 	"subscription-server/internal/logger"
 	"subscription-server/internal/storage"
 	httpTransport "subscription-server/internal/transport/http"
+	"syscall"
+	"time"
 )
 
 func main() {
@@ -56,10 +60,23 @@ func main() {
 		TLSConfig: tlsConfig,
 	}
 
-	fmt.Println("Starting server on https://localhost" + port)
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
 
-	// launch HTTPS
-	if err := server.ListenAndServeTLS("", ""); err != nil {
-		log.Fatalf("server failed: %v", err)
+	fmt.Println("Starting server on https://localhost" + port)
+	go func() {
+		if err := server.ListenAndServeTLS("", ""); err != nil {
+			log.Fatalf("server failed: %v", err)
+		}
+	}()
+	<-ctx.Done()
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := server.Shutdown(shutdownCtx); err != nil {
+		log.Fatalf("server shutdown failed: %v", err)
 	}
+	fmt.Println("Server exited properly")
+	logger.Close()
+
+
 }
